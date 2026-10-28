@@ -1,45 +1,86 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ==========================================
+# Archivos de compilación y binarios de Flutter
+# ==========================================
+build/
+/build/
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
 
-# IntelliJ related
+# Reportes y cobertura
+/coverage/
+coverage/
+
+# Simbolización y ofuscación
+app.*.symbols
+app.*.map.json
+
+# ==========================================
+# Específico de Android
+# ==========================================
+# Salidas de compilación nativa
+**/android/**/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/captures/
+android/.cxx/
+
+# Configuración local de SDK (rutas locales del usuario)
+local.properties
+**/android/local.properties
+
+# Caché interna de Gradle
+.gradle/
+**/.gradle/
+android/.gradle/
+
+# Archivos autogenerados de plugins
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# Claves, keystores y credenciales (Seguridad estricta)
+*.keystore
+*.jks
+key.properties
+**/android/key.properties
+
+# ==========================================
+# IDEs y Editores de código
+# ==========================================
+# IntelliJ / Android Studio
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Visual Studio Code
+.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
+# ==========================================
+# Archivos del Sistema Operativo
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# Symbolication related
-app.*.symbols
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Obfuscation related
-app.*.map.json
+# Linux
+*~
+.directory
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Otros temporales
+*.log
+*.class
+*.pyc
+*.swp
+.history/
