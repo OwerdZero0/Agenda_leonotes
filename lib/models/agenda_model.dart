@@ -18,4 +18,7 @@ class AgendaModel extends HiveObject {
     required this.nombre,
     required this.colorHexadecimal,
   });
+
+  @override
+  String toString() => 'AgendaModel(id: $id, nombre: $nombre, color: $colorHexadecimal)';
 }

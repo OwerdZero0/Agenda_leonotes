@@ -6,6 +6,7 @@ import '../config/theme/app_colors.dart';
 import '../models/task_model.dart';
 import '../providers/agenda_provider.dart';
 import '../widgets/notebook_scaffold.dart';
+import '../widgets/task_card.dart';
 import 'new_task_screen.dart';
 import 'timeline_screen.dart';
 
@@ -36,6 +37,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final proveedor = Provider.of<AgendaProvider>(context);
     final tareasDelDia = proveedor.obtenerTareasPorDia(_diaSeleccionado);
+
+    // Agrupación optimizada en un solo recorrido O(N) para el mes visible
+    final Map<int, List<TaskModel>> tareasPorDiaMes = {};
+    for (final tarea in proveedor.listaTareas) {
+      if (tarea.fechaHoraEntrega.year == _mesActual.year &&
+          tarea.fechaHoraEntrega.month == _mesActual.month) {
+        tareasPorDiaMes.putIfAbsent(tarea.fechaHoraEntrega.day, () => []).add(tarea);
+      }
+    }
 
     // Cálculos para la cuadrícula del calendario
     final int diasEnMes = DateTime(_mesActual.year, _mesActual.month + 1, 0).day;
@@ -111,7 +121,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               final fechaCasilla = DateTime(_mesActual.year, _mesActual.month, offsetDia + 1);
               final bool esSeleccionado = _esMismoDia(fechaCasilla, _diaSeleccionado);
               final bool esHoy = _esMismoDia(fechaCasilla, DateTime.now());
-              final tareasCasilla = proveedor.obtenerTareasPorDia(fechaCasilla);
+              final tareasCasilla = tareasPorDiaMes[offsetDia + 1] ?? const <TaskModel>[];
 
               return GestureDetector(
                 onTap: () {
@@ -232,57 +242,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       final colorPrioridad =
                           AppColors.obtenerColorPrioridad(tarea.nivelPrioridad);
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: tarea.estaCompletada
-                                ? AppColors.tareaCompletada
-                                : colorPrioridad.withOpacity(0.5),
-                            width: 1.2,
-                          ),
-                        ),
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                          leading: Checkbox(
-                            value: tarea.estaCompletada,
-                            activeColor: AppColors.tareaCompletada,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            onChanged: (_) => proveedor.conmutarEstadoCompletado(tarea),
-                          ),
-                          title: Text(
-                            tarea.titulo,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              decoration: tarea.estaCompletada ? TextDecoration.lineThrough : null,
-                              color: AppColors.textoOscuro,
+                      return TaskCard(
+                        tarea: tarea,
+                        onToggleCompletada: (_) => proveedor.conmutarEstadoCompletado(tarea),
+                        onEliminar: () {
+                          final tareaEliminada = tarea;
+                          proveedor.eliminarTarea(tarea.id);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Tarea "${tareaEliminada.titulo}" eliminada'),
+                              action: SnackBarAction(
+                                label: 'Deshacer',
+                                textColor: Colors.amberAccent,
+                                onPressed: () => proveedor.agregarTarea(tareaEliminada),
+                              ),
+                              duration: const Duration(seconds: 4),
                             ),
-                          ),
-                          subtitle: Text(
-                            'Entrega: ${DateFormat('HH:mm').format(tarea.fechaHoraEntrega)}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textoSecundario),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Signo de admiración con el color de su dificultad
-                              Icon(
-                                Icons.priority_high_rounded,
-                                color: colorPrioridad,
-                                size: 18,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                                color: AppColors.textoSecundario,
-                                onPressed: () => proveedor.eliminarTarea(tarea.id),
-                              ),
-                            ],
-                          ),
-                        ),
+                          );
+                        },
                       );
                     },
                   ),

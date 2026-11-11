@@ -2,20 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/agenda_model.dart';
+import '../models/bloque_horario.dart';
 import '../models/task_model.dart';
 import '../services/notification_service.dart';
 
-class BloqueHorarioInteligente {
-  final TaskModel tarea;
-  final TimeOfDay horaInicio;
-  final TimeOfDay horaFin;
-
-  BloqueHorarioInteligente({
-    required this.tarea,
-    required this.horaInicio,
-    required this.horaFin,
-  });
-}
+export '../models/bloque_horario.dart';
 
 class AgendaProvider extends ChangeNotifier {
   late Box<AgendaModel> _cajaAgendas;
@@ -24,15 +15,29 @@ class AgendaProvider extends ChangeNotifier {
 
   String _terminoBusqueda = '';
 
-  List<AgendaModel> get listaAgendas => _cajaAgendas.values.toList();
-  List<TaskModel> get listaTareas => _cajaTareas.values.toList();
+  // Caché en memoria para evitar reconstrucciones costosas O(n) en cada acceso
+  List<AgendaModel>? _cacheAgendas;
+  List<TaskModel>? _cacheTareas;
+
+  List<AgendaModel> get listaAgendas => _cacheAgendas ??= _cajaAgendas.values.toList();
+  List<TaskModel> get listaTareas => _cacheTareas ??= _cajaTareas.values.toList();
 
   String get terminoBusqueda => _terminoBusqueda;
 
+  void _invalidarCache({bool notificar = true}) {
+    _cacheAgendas = null;
+    _cacheTareas = null;
+    if (notificar) notifyListeners();
+  }
+
   Future<void> inicializarProveedor() async {
-    _cajaAgendas = Hive.box<AgendaModel>('caja_agendas');
-    _cajaTareas = Hive.box<TaskModel>('caja_tareas');
-    notifyListeners();
+    try {
+      _cajaAgendas = Hive.box<AgendaModel>('caja_agendas');
+      _cajaTareas = Hive.box<TaskModel>('caja_tareas');
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al inicializar AgendaProvider: $e');
+    }
   }
 
   // --- BUSCADOR HOME ---
@@ -100,46 +105,75 @@ class AgendaProvider extends ChangeNotifier {
 
   // --- CRUD AGENDAS ---
   Future<void> agregarAgenda(AgendaModel nuevaAgenda) async {
-    await _cajaAgendas.put(nuevaAgenda.id, nuevaAgenda);
-    notifyListeners();
+    try {
+      await _cajaAgendas.put(nuevaAgenda.id, nuevaAgenda);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al agregar agenda: $e');
+      rethrow;
+    }
   }
 
   Future<void> eliminarAgenda(String idAgenda) async {
-    // Eliminación en cascada de tareas asociadas
-    final tareasAEliminar = listaTareas.where((tarea) => tarea.idAgenda == idAgenda).toList();
-    for (var tarea in tareasAEliminar) {
-      await _servicioNotificaciones.cancelarAlarma(tarea.id);
-      await _cajaTareas.delete(tarea.id);
+    try {
+      // Eliminación en cascada de tareas asociadas
+      final tareasAEliminar = listaTareas.where((tarea) => tarea.idAgenda == idAgenda).toList();
+      for (var tarea in tareasAEliminar) {
+        await _servicioNotificaciones.cancelarAlarma(tarea.id);
+        await _cajaTareas.delete(tarea.id);
+      }
+      await _cajaAgendas.delete(idAgenda);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al eliminar agenda: $e');
+      rethrow;
     }
-    await _cajaAgendas.delete(idAgenda);
-    notifyListeners();
   }
 
   // --- CRUD TAREAS ---
   Future<void> agregarTarea(TaskModel nuevaTarea) async {
-    await _cajaTareas.put(nuevaTarea.id, nuevaTarea);
-    await _servicioNotificaciones.programarAlarmaTarea(nuevaTarea);
-    notifyListeners();
+    try {
+      await _cajaTareas.put(nuevaTarea.id, nuevaTarea);
+      await _servicioNotificaciones.programarAlarmaTarea(nuevaTarea);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al agregar tarea: $e');
+      rethrow;
+    }
   }
 
   Future<void> actualizarTarea(TaskModel tareaModificada) async {
-    await _cajaTareas.put(tareaModificada.id, tareaModificada);
-    await _servicioNotificaciones.programarAlarmaTarea(tareaModificada);
-    notifyListeners();
+    try {
+      await _cajaTareas.put(tareaModificada.id, tareaModificada);
+      await _servicioNotificaciones.programarAlarmaTarea(tareaModificada);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al actualizar tarea: $e');
+      rethrow;
+    }
   }
 
   Future<void> conmutarEstadoCompletado(TaskModel tarea) async {
-    tarea.estaCompletada = !tarea.estaCompletada;
-    await tarea.save();
-    // Reconfigura la alarma adaptándola al estado actual
-    await _servicioNotificaciones.programarAlarmaTarea(tarea);
-    notifyListeners();
+    try {
+      tarea.estaCompletada = !tarea.estaCompletada;
+      await tarea.save();
+      await _servicioNotificaciones.programarAlarmaTarea(tarea);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al conmutar estado de tarea: $e');
+      rethrow;
+    }
   }
 
   Future<void> eliminarTarea(String idTarea) async {
-    await _servicioNotificaciones.cancelarAlarma(idTarea);
-    await _cajaTareas.delete(idTarea);
-    notifyListeners();
+    try {
+      await _servicioNotificaciones.cancelarAlarma(idTarea);
+      await _cajaTareas.delete(idTarea);
+      _invalidarCache();
+    } catch (e) {
+      debugPrint('Error al eliminar tarea: $e');
+      rethrow;
+    }
   }
 
   // --- ALGORITMO DE HORARIO INTELIGENTE ---
@@ -148,31 +182,55 @@ class AgendaProvider extends ChangeNotifier {
     required TimeOfDay horaInicioJornada,
     required TimeOfDay horaFinJornada,
   }) {
-    List<int> prioridadesSeleccionadas;
+    final DateTime momentoActual = DateTime.now();
 
+    // 1. Determinar dificultades permitidas según el slider de energía
+    List<int> prioridadesPermitidas;
     if (porcentajeEnergia >= 81) {
-      prioridadesSeleccionadas = [5, 4];
+      prioridadesPermitidas = [5, 4];
     } else if (porcentajeEnergia >= 61) {
-      prioridadesSeleccionadas = [4, 3];
+      prioridadesPermitidas = [4, 3];
     } else if (porcentajeEnergia >= 41) {
-      prioridadesSeleccionadas = [3, 2];
+      prioridadesPermitidas = [3, 2];
     } else if (porcentajeEnergia >= 21) {
-      prioridadesSeleccionadas = [2, 1];
+      prioridadesPermitidas = [2, 1];
     } else {
-      prioridadesSeleccionadas = [1];
+      prioridadesPermitidas = [1];
     }
 
+    // 2. Filtrar tareas no completadas:
     final tareasCandidatas = listaTareas.where((tarea) {
-      return !tarea.estaCompletada && prioridadesSeleccionadas.contains(tarea.nivelPrioridad);
+      if (tarea.estaCompletada) return false;
+
+      final bool venceHoy = tarea.fechaHoraEntrega.year == momentoActual.year &&
+          tarea.fechaHoraEntrega.month == momentoActual.month &&
+          tarea.fechaHoraEntrega.day == momentoActual.day;
+
+      final bool estaVencida = tarea.fechaHoraEntrega.isBefore(momentoActual);
+
+      if (venceHoy || estaVencida) return true;
+      return prioridadesPermitidas.contains(tarea.nivelPrioridad);
     }).toList();
 
-    // Ordenar: primero mayor prioridad, luego fecha más cercana de entrega
+    // 3. Ordenar: Primero las de entrega más cercana/urgente, luego por mayor dificultad
     tareasCandidatas.sort((primera, segunda) {
-      final comparacionPrioridad = segunda.nivelPrioridad.compareTo(primera.nivelPrioridad);
-      if (comparacionPrioridad != 0) return comparacionPrioridad;
-      return primera.fechaHoraEntrega.compareTo(segunda.fechaHoraEntrega);
+      final bool primeraVenceHoy = primera.fechaHoraEntrega.year == momentoActual.year &&
+          primera.fechaHoraEntrega.month == momentoActual.month &&
+          primera.fechaHoraEntrega.day == momentoActual.day;
+      final bool segundaVenceHoy = segunda.fechaHoraEntrega.year == momentoActual.year &&
+          segunda.fechaHoraEntrega.month == momentoActual.month &&
+          segunda.fechaHoraEntrega.day == momentoActual.day;
+
+      if (primeraVenceHoy && !segundaVenceHoy) return -1;
+      if (!primeraVenceHoy && segundaVenceHoy) return 1;
+
+      final int comparacionFecha = primera.fechaHoraEntrega.compareTo(segunda.fechaHoraEntrega);
+      if (comparacionFecha != 0) return comparacionFecha;
+
+      return segunda.nivelPrioridad.compareTo(primera.nivelPrioridad);
     });
 
+    // 4. Ubicar en bloques dentro del tiempo disponible
     final int minutosInicioTotal = (horaInicioJornada.hour * 60) + horaInicioJornada.minute;
     final int minutosFinTotal = (horaFinJornada.hour * 60) + horaFinJornada.minute;
     int minutosActuales = minutosInicioTotal;

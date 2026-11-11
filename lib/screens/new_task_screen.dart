@@ -4,13 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../config/theme/app_colors.dart';
-import '../models/agenda_model.dart';
 import '../models/task_model.dart';
 import '../providers/agenda_provider.dart';
 import '../widgets/notebook_scaffold.dart';
 
 class NewTaskScreen extends StatefulWidget {
-  const NewTaskScreen({super.key});
+  final VoidCallback? alGuardarExitoso;
+  const NewTaskScreen({super.key, this.alGuardarExitoso});
 
   @override
   State<NewTaskScreen> createState() => _NewTaskScreenState();
@@ -23,12 +23,12 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
   final TextEditingController _controladorDescripcion = TextEditingController();
 
   String? _idAgendaSeleccionada;
-  DateTime _fechaSeleccionada = DateTime.now();
-  TimeOfDay _horaSeleccionada = const TimeOfDay(hour: 12, minute: 0);
+  DateTime _fechaEntrega = DateTime.now();
+  TimeOfDay _horaEntrega = const TimeOfDay(hour: 18, minute: 0);
 
-  int _minutosAvisoAnticipado = 10;
+  int _minutosAvisoAnticipado = 15;
   int _minutosEstimadosRealizacion = 30;
-  int _nivelPrioridadSeleccionado = 3; // Media por defecto
+  int _nivelPrioridadSeleccionado = 3;
 
   @override
   void dispose() {
@@ -37,149 +37,50 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     super.dispose();
   }
 
-  Future<void> _seleccionarFecha(BuildContext contexto) async {
-    final DateTime? fechaElegida = await showDatePicker(
-      context: contexto,
-      initialDate: _fechaSeleccionada,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.botonOscuro,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textoOscuro,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (fechaElegida != null) {
-      setState(() {
-        _fechaSeleccionada = fechaElegida;
-      });
-    }
-  }
-
-  Future<void> _seleccionarHora(BuildContext contexto) async {
-    final TimeOfDay? horaElegida = await showTimePicker(
-      context: contexto,
-      initialTime: _horaSeleccionada,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.botonOscuro,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textoOscuro,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (horaElegida != null) {
-      setState(() {
-        _horaSeleccionada = horaElegida;
-      });
-    }
-  }
-
-  Future<void> _mostrarDialogoNuevaAgenda(BuildContext contexto) async {
-    final TextEditingController controladorNombre = TextEditingController();
-    int colorSeleccionado = 0xFF1976D2;
+  Future<void> _solicitarMinutosPersonalizados({
+    required String titulo,
+    required int valorActual,
+    required Function(int) alConfirmar,
+  }) async {
+    final TextEditingController controladorDialogo =
+        TextEditingController(text: valorActual.toString());
 
     await showDialog(
-      context: contexto,
+      context: context,
       builder: (contextoDialogo) {
-        return StatefulBuilder(
-          builder: (context, setEstadoDialogo) {
-            return AlertDialog(
-              backgroundColor: AppColors.hojaLibreta,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text(
-                'Crear nueva agenda',
-                style: TextStyle(color: AppColors.textoOscuro, fontWeight: FontWeight.bold),
+        return AlertDialog(
+          backgroundColor: AppColors.hojaLibreta,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(titulo, style: const TextStyle(color: AppColors.textoOscuro, fontSize: 16, fontWeight: FontWeight.bold)),
+          content: TextField(
+            controller: controladorDialogo,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Minutos',
+              hintText: 'Ej. 40, 75, 150...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(contextoDialogo),
+              child: const Text('Cancelar', style: TextStyle(color: AppColors.textoSecundario)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.botonOscuro,
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controladorNombre,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre de la agenda',
-                      hintText: 'Ej. Escuela, Personal...',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      0xFF1976D2, // Azul
-                      0xFF388E3C, // Verde
-                      0xFFD32F2F, // Rojo
-                      0xFFF57C00, // Naranja
-                      0xFF7B1FA2, // Morado
-                    ].map((colorHex) {
-                      final bool esSeleccionado = colorSeleccionado == colorHex;
-                      return GestureDetector(
-                        onTap: () {
-                          setEstadoDialogo(() {
-                            colorSeleccionado = colorHex;
-                          });
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Color(colorHex),
-                            shape: BoxShape.circle,
-                            border: esSeleccionado
-                                ? Border.all(color: AppColors.botonOscuro, width: 3)
-                                : null,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(contextoDialogo),
-                  child: const Text('Cancelar', style: TextStyle(color: AppColors.textoSecundario)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.botonOscuro,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    if (controladorNombre.text.trim().isNotEmpty) {
-                      final proveedor = Provider.of<AgendaProvider>(contexto, listen: false);
-                      final nuevaAgenda = AgendaModel(
-                        id: const Uuid().v4(),
-                        nombre: controladorNombre.text.trim(),
-                        colorHexadecimal: colorSeleccionado,
-                      );
-                      await proveedor.agregarAgenda(nuevaAgenda);
-                      setState(() {
-                        _idAgendaSeleccionada = nuevaAgenda.id;
-                      });
-                      if (contextoDialogo.mounted) {
-                        Navigator.pop(contextoDialogo);
-                      }
-                    }
-                  },
-                  child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
+              onPressed: () {
+                final int? ingresado = int.tryParse(controladorDialogo.text.trim());
+                if (ingresado != null && ingresado > 0) {
+                  alConfirmar(ingresado);
+                  Navigator.pop(contextoDialogo);
+                }
+              },
+              child: const Text('Aceptar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         );
       },
     );
@@ -199,11 +100,11 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     }
 
     final DateTime fechaHoraFinal = DateTime(
-      _fechaSeleccionada.year,
-      _fechaSeleccionada.month,
-      _fechaSeleccionada.day,
-      _horaSeleccionada.hour,
-      _horaSeleccionada.minute,
+      _fechaEntrega.year,
+      _fechaEntrega.month,
+      _fechaEntrega.day,
+      _horaEntrega.hour,
+      _horaEntrega.minute,
     );
 
     final nuevaTarea = TaskModel(
@@ -222,13 +123,8 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     await proveedor.agregarTarea(nuevaTarea);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tarea creada con éxito'),
-          backgroundColor: AppColors.tareaCompletada,
-        ),
-      );
       Navigator.pop(context);
+      widget.alGuardarExitoso?.call();
     }
   }
 
@@ -245,7 +141,6 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Encabezado
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -255,248 +150,203 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                   ),
                   const Text(
                     'Nueva Tarea',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textoOscuro,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
                   ),
-                  const SizedBox(width: 48), // Balance visual con el botón atrás
+                  const SizedBox(width: 48),
                 ],
               ),
               const Divider(color: AppColors.lineaMargenHoja, thickness: 1.5),
               const SizedBox(height: 12),
 
-              // 1. Título
               TextFormField(
                 controller: _controladorTitulo,
                 style: const TextStyle(color: AppColors.textoOscuro, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   labelText: 'Título de la tarea',
-                  labelStyle: const TextStyle(color: AppColors.textoSecundario),
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.lineaMargenHoja),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                validator: (valor) {
-                  if (valor == null || valor.trim().isEmpty) {
-                    return 'Ingresa un título para la tarea';
-                  }
-                  return null;
-                },
+                validator: (valor) => valor == null || valor.trim().isEmpty ? 'Ingresa un título' : null,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // 2. Descripción
               TextFormField(
                 controller: _controladorDescripcion,
-                maxLines: 3,
+                maxLines: 2,
                 style: const TextStyle(color: AppColors.textoOscuro),
                 decoration: InputDecoration(
                   labelText: 'Descripción de la tarea',
-                  labelStyle: const TextStyle(color: AppColors.textoSecundario),
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.lineaMargenHoja),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              const Text('Agenda asignada', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _idAgendaSeleccionada,
+                    hint: const Text('Selecciona una agenda'),
+                    isExpanded: true,
+                    items: listaAgendas.map((agenda) {
+                      return DropdownMenuItem<String>(
+                        value: agenda.id,
+                        child: Row(
+                          children: [
+                            CircleAvatar(radius: 6, backgroundColor: Color(agenda.colorHexadecimal)),
+                            const SizedBox(width: 8),
+                            Text(agenda.nombre),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => _idAgendaSeleccionada = val),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 3. Selector de Agenda
-              const Text(
-                'Agenda asignada',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
-              ),
+              const Text('Fecha y Hora límite de Entrega', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro)),
               const SizedBox(height: 6),
               Row(
                 children: [
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _idAgendaSeleccionada,
-                          hint: const Text('Selecciona una agenda'),
-                          isExpanded: true,
-                          items: listaAgendas.map((agenda) {
-                            return DropdownMenuItem<String>(
-                              value: agenda.id,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 6,
-                                    backgroundColor: Color(agenda.colorHexadecimal),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(agenda.nombre),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (nuevoValor) {
-                            setState(() {
-                              _idAgendaSeleccionada = nuevoValor;
-                            });
-                          },
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.event_available_rounded, size: 18, color: AppColors.prioridadMuyAlta),
+                      label: Text(DateFormat('dd/MM/yyyy').format(_fechaEntrega), style: const TextStyle(color: AppColors.textoOscuro)),
+                      onPressed: () async {
+                        final f = await showDatePicker(context: context, initialDate: _fechaEntrega, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730)));
+                        if (f != null) setState(() => _fechaEntrega = f);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.alarm_on_rounded, size: 18, color: AppColors.prioridadMuyAlta),
+                      label: Text(_horaEntrega.format(context), style: const TextStyle(color: AppColors.textoOscuro)),
+                      onPressed: () async {
+                        final h = await showTimePicker(context: context, initialTime: _horaEntrega);
+                        if (h != null) setState(() => _horaEntrega = h);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Alarma con opción personalizada
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Alarma sonora de aviso anticipado', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro)),
+                  Text('${_minutosAvisoAnticipado} min', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.botonOscuro)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: [5, 15, 30, 60, 1440].contains(_minutosAvisoAnticipado) ? _minutosAvisoAnticipado : -1,
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem(value: 5, child: Text('5 minutos antes')),
+                      const DropdownMenuItem(value: 15, child: Text('15 minutos antes')),
+                      const DropdownMenuItem(value: 30, child: Text('30 minutos antes')),
+                      const DropdownMenuItem(value: 60, child: Text('1 hora antes')),
+                      const DropdownMenuItem(value: 1440, child: Text('1 día antes')),
+                      DropdownMenuItem(
+                        value: -1,
+                        child: Text(
+                          [5, 15, 30, 60, 1440].contains(_minutosAvisoAnticipado)
+                              ? 'Personalizado...'
+                              : 'Personalizado: $_minutosAvisoAnticipado minutos',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.botonOscuro),
                         ),
                       ),
-                    ),
+                    ],
+                    onChanged: (val) {
+                      if (val == -1) {
+                        _solicitarMinutosPersonalizados(
+                          titulo: 'Minutos antes para la alarma',
+                          valorActual: _minutosAvisoAnticipado,
+                          alConfirmar: (nuevosMinutos) => setState(() => _minutosAvisoAnticipado = nuevosMinutos),
+                        );
+                      } else if (val != null) {
+                        setState(() => _minutosAvisoAnticipado = val);
+                      }
+                    },
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.botonOscuro,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    tooltip: 'Crear nueva agenda',
-                    onPressed: () => _mostrarDialogoNuevaAgenda(context),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 4. Fecha y Hora de Entrega
-              const Text(
-                'Fecha y hora de entrega',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
-              ),
-              const SizedBox(height: 6),
+              // Tiempo estimado de realización promedio con opción personalizada
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.botonOscuro),
-                      label: Text(
-                        DateFormat('dd/MM/yyyy').format(_fechaSeleccionada),
-                        style: const TextStyle(color: AppColors.textoOscuro),
-                      ),
-                      onPressed: () => _seleccionarFecha(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.access_time_rounded, size: 18, color: AppColors.botonOscuro),
-                      label: Text(
-                        _horaSeleccionada.format(context),
-                        style: const TextStyle(color: AppColors.textoOscuro),
-                      ),
-                      onPressed: () => _seleccionarHora(context),
-                    ),
-                  ),
+                  const Text('Tiempo estimado de realización', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro)),
+                  Text('${_minutosEstimadosRealizacion} min', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.botonOscuro)),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // 5. Alarma / Aviso para entrega sonora
-              const Text(
-                'Alarma para aviso de entrega',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
-              ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black12),
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
-                    value: _minutosAvisoAnticipado,
+                    value: [15, 30, 45, 60, 90, 120].contains(_minutosEstimadosRealizacion) ? _minutosEstimadosRealizacion : -1,
                     isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: 5, child: Text('5 minutos antes')),
-                      DropdownMenuItem(value: 10, child: Text('10 minutos antes')),
-                      DropdownMenuItem(value: 30, child: Text('30 minutos antes')),
-                      DropdownMenuItem(value: 60, child: Text('1 hora antes')),
-                      DropdownMenuItem(value: 120, child: Text('2 horas antes')),
-                      DropdownMenuItem(value: 1440, child: Text('1 día antes')),
+                    items: [
+                      const DropdownMenuItem(value: 15, child: Text('15 minutos')),
+                      const DropdownMenuItem(value: 30, child: Text('30 minutos')),
+                      const DropdownMenuItem(value: 45, child: Text('45 minutos')),
+                      const DropdownMenuItem(value: 60, child: Text('1 hora (60 min)')),
+                      const DropdownMenuItem(value: 90, child: Text('1 hora y media (90 min)')),
+                      const DropdownMenuItem(value: 120, child: Text('2 horas (120 min)')),
+                      DropdownMenuItem(
+                        value: -1,
+                        child: Text(
+                          [15, 30, 45, 60, 90, 120].contains(_minutosEstimadosRealizacion)
+                              ? 'Personalizado...'
+                              : 'Personalizado: $_minutosEstimadosRealizacion minutos',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.botonOscuro),
+                        ),
+                      ),
                     ],
-                    onChanged: (nuevoValor) {
-                      if (nuevoValor != null) {
-                        setState(() {
-                          _minutosAvisoAnticipado = nuevoValor;
-                        });
+                    onChanged: (val) {
+                      if (val == -1) {
+                        _solicitarMinutosPersonalizados(
+                          titulo: 'Minutos estimados de realización',
+                          valorActual: _minutosEstimadosRealizacion,
+                          alConfirmar: (nuevosMinutos) => setState(() => _minutosEstimadosRealizacion = nuevosMinutos),
+                        );
+                      } else if (val != null) {
+                        setState(() => _minutosEstimadosRealizacion = val);
                       }
                     },
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 6. Tiempo estimado de realización
-              const Text(
-                'Tiempo estimado de realización',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _minutosEstimadosRealizacion,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: 15, child: Text('15 minutos')),
-                      DropdownMenuItem(value: 30, child: Text('30 minutos')),
-                      DropdownMenuItem(value: 45, child: Text('45 minutos')),
-                      DropdownMenuItem(value: 60, child: Text('1 hora')),
-                      DropdownMenuItem(value: 90, child: Text('1 hora y media')),
-                      DropdownMenuItem(value: 120, child: Text('2 horas')),
-                      DropdownMenuItem(value: 180, child: Text('3 horas')),
-                    ],
-                    onChanged: (nuevoValor) {
-                      if (nuevoValor != null) {
-                        setState(() {
-                          _minutosEstimadosRealizacion = nuevoValor;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // 7. Dificultad / Prioridad (Radio buttons)
-              const Text(
-                'Dificultad de la tarea',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro),
-              ),
+              const Text('Dificultad de la tarea', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textoOscuro)),
               const SizedBox(height: 8),
-              _construirOpcionPrioridad(1, 'Muy baja', AppColors.prioridadMuyBaja),
-              _construirOpcionPrioridad(2, 'Baja', AppColors.prioridadBaja),
-              _construirOpcionPrioridad(3, 'Media', AppColors.prioridadMedia),
-              _construirOpcionPrioridad(4, 'Alta', AppColors.prioridadAlta),
-              _construirOpcionPrioridad(5, 'Muy alta', AppColors.prioridadMuyAlta),
-              const SizedBox(height: 24),
+              ...NivelPrioridad.values.map((p) => _construirRadioDificultad(p)),
+              const SizedBox(height: 20),
 
-              // Botón Guardar Tarea
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -506,10 +356,7 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: _guardarTarea,
-                  child: const Text(
-                    'Guardar Tarea',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                  child: const Text('Guardar Tarea', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -520,49 +367,20 @@ class _NewTaskScreenState extends State<NewTaskScreen> {
     );
   }
 
-  Widget _construirOpcionPrioridad(int nivel, String etiqueta, Color colorPrioridad) {
-    final bool esSeleccionado = _nivelPrioridadSeleccionado == nivel;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _nivelPrioridadSeleccionado = nivel;
-        });
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Radio<int>(
-              value: nivel,
-              groupValue: _nivelPrioridadSeleccionado,
-              activeColor: colorPrioridad,
-              onChanged: (valor) {
-                if (valor != null) {
-                  setState(() {
-                    _nivelPrioridadSeleccionado = valor;
-                  });
-                }
-              },
-            ),
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: colorPrioridad,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Dificultad $etiqueta',
-              style: TextStyle(
-                color: AppColors.textoOscuro,
-                fontWeight: esSeleccionado ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+  Widget _construirRadioDificultad(NivelPrioridad prioridad) {
+    return RadioListTile<int>(
+      dense: true,
+      value: prioridad.valor,
+      groupValue: _nivelPrioridadSeleccionado,
+      activeColor: prioridad.color,
+      title: Row(
+        children: [
+          CircleAvatar(radius: 6, backgroundColor: prioridad.color),
+          const SizedBox(width: 8),
+          Text('Dificultad ${prioridad.etiqueta}', style: const TextStyle(color: AppColors.textoOscuro, fontWeight: FontWeight.w600)),
+        ],
       ),
+      onChanged: (v) => setState(() => _nivelPrioridadSeleccionado = v ?? NivelPrioridad.media.valor),
     );
   }
 }

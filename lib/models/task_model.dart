@@ -1,5 +1,8 @@
 // lib/models/task_model.dart
 import 'package:hive/hive.dart';
+import 'enums/nivel_prioridad.dart';
+
+export 'enums/nivel_prioridad.dart';
 
 part 'task_model.g.dart';
 
@@ -43,4 +46,10 @@ class TaskModel extends HiveObject {
     this.minutosEstimadosRealizacion = 30,
     this.estaCompletada = false,
   });
+
+  NivelPrioridad get prioridad => NivelPrioridad.desdeValor(nivelPrioridad);
+  set prioridad(NivelPrioridad valor) => nivelPrioridad = valor.valor;
+
+  @override
+  String toString() => 'TaskModel(id: $id, titulo: $titulo, completada: $estaCompletada, entrega: $fechaHoraEntrega)';
 }

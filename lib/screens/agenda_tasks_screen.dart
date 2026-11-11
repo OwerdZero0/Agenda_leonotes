@@ -7,6 +7,7 @@ import '../models/agenda_model.dart';
 import '../models/task_model.dart';
 import '../providers/agenda_provider.dart';
 import '../widgets/notebook_scaffold.dart';
+import '../widgets/task_card.dart';
 
 class AgendaTasksScreen extends StatelessWidget {
   final AgendaModel agenda;
@@ -73,86 +74,27 @@ class AgendaTasksScreen extends StatelessWidget {
                       final colorPrioridad =
                           AppColors.obtenerColorPrioridad(tarea.nivelPrioridad);
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        elevation: 0.5,
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: tarea.estaCompletada
-                                ? AppColors.tareaCompletada.withOpacity(0.5)
-                                : colorPrioridad.withOpacity(0.5),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          leading: Checkbox(
-                            value: tarea.estaCompletada,
-                            activeColor: AppColors.tareaCompletada,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            onChanged: (_) {
-                              proveedor.conmutarEstadoCompletado(tarea);
-                            },
-                          ),
-                          title: Text(
-                            tarea.titulo,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textoOscuro,
-                              decoration: tarea.estaCompletada
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (tarea.descripcion.isNotEmpty)
-                                Text(
-                                  tarea.descripcion,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textoSecundario,
-                                  ),
-                                ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time_rounded,
-                                    size: 13,
-                                    color: colorPrioridad,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    DateFormat('dd/MM/yyyy - HH:mm')
-                                        .format(tarea.fechaHoraEntrega),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: colorPrioridad,
-                                    ),
-                                  ),
-                                ],
+                      return TaskCard(
+                        tarea: tarea,
+                        onToggleCompletada: (_) {
+                          proveedor.conmutarEstadoCompletado(tarea);
+                        },
+                        onEliminar: () {
+                          final tareaEliminada = tarea;
+                          proveedor.eliminarTarea(tarea.id);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Tarea "${tareaEliminada.titulo}" eliminada'),
+                              action: SnackBarAction(
+                                label: 'Deshacer',
+                                textColor: Colors.amberAccent,
+                                onPressed: () => proveedor.agregarTarea(tareaEliminada),
                               ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: AppColors.textoSecundario,
-                              size: 19,
+                              duration: const Duration(seconds: 4),
                             ),
-                            onPressed: () => proveedor.eliminarTarea(tarea.id),
-                          ),
-                        ),
+                          );
+                        },
                       );
                     },
                   ),

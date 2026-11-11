@@ -32,27 +32,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
     });
   }
 
-  String _obtenerEtiquetaDificultad(int nivel) {
-    switch (nivel) {
-      case 1:
-        return 'Muy baja';
-      case 2:
-        return 'Baja';
-      case 3:
-        return 'Media';
-      case 4:
-        return 'Alta';
-      case 5:
-        return 'Muy alta';
-      default:
-        return 'Media';
-    }
-  }
+  String _obtenerEtiquetaDificultad(int nivel) => NivelPrioridad.desdeValor(nivel).etiqueta;
 
   @override
   Widget build(BuildContext context) {
     final proveedor = Provider.of<AgendaProvider>(context);
-    final listaTareasDia = proveedor.obtenerTareasPorDia(_diaVisualizado);
+    final listaTareasDia = List<TaskModel>.from(proveedor.obtenerTareasPorDia(_diaVisualizado));
 
     // Ordenar cronológicamente por la hora de entrega
     listaTareasDia.sort((primera, segunda) =>
@@ -112,7 +97,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         Icon(
                           Icons.timeline_rounded,
                           size: 56,
-                          color: AppColors.textoSecundario.withOpacity(0.3),
+                          color: AppColors.textoSecundario.withValues(alpha: 0.3),
                         ),
                         const SizedBox(height: 10),
                         const Text(
@@ -178,7 +163,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     border: Border.all(color: Colors.white, width: 2),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: colorEstado.withOpacity(0.4),
+                                        color: colorEstado.withValues(alpha: 0.4),
                                         blurRadius: 4,
                                         spreadRadius: 1,
                                       ),
@@ -204,12 +189,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: colorEstado.withOpacity(0.4),
+                                    color: colorEstado.withValues(alpha: 0.4),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.04),
+                                      color: Colors.black.withValues(alpha: 0.04),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -266,7 +251,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: colorEstado.withOpacity(0.15),
+                                            color: colorEstado.withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(

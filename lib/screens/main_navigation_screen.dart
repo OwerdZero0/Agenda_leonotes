@@ -9,16 +9,31 @@ import 'new_task_screen.dart';
 import 'timeline_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final int indiceInicial;
+  const MainNavigationScreen({super.key, this.indiceInicial = 0});
+
+  static MainNavigationScreenState? of(BuildContext context) =>
+      context.findAncestorStateOfType<MainNavigationScreenState>();
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  MainNavigationScreenState createState() => MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _indiceSeleccionado = 0;
+class MainNavigationScreenState extends State<MainNavigationScreen> {
+  late int _indiceSeleccionado;
 
-  // Lista de pantallas principales accesibles desde la barra
+  @override
+  void initState() {
+    super.initState();
+    _indiceSeleccionado = widget.indiceInicial;
+  }
+
+  void cambiarPestana(int nuevoIndice) {
+    setState(() {
+      _indiceSeleccionado = nuevoIndice;
+    });
+  }
+
   final List<Widget> _pantallas = const [
     HomeScreen(),
     AgendasScreen(),
@@ -40,7 +55,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           color: AppColors.portadaLibreta,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -51,70 +66,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // 1. Menú Principal / Home
-              _construirBotonNavegacion(
-                indice: 0,
-                icono: Icons.home_rounded,
-                mensajeTooltip: 'Home / Menú Principal',
-              ),
-
-              // 2. Mis Agendas
-              _construirBotonNavegacion(
-                indice: 1,
-                icono: Icons.menu_book_rounded,
-                mensajeTooltip: 'Mis Agendas',
-              ),
-
-              // 3. Calendario
-              _construirBotonNavegacion(
-                indice: 2,
-                icono: Icons.calendar_month_rounded,
-                mensajeTooltip: 'Calendario',
-              ),
-
-              // 4. Línea del tiempo de hoy
-              _construirBotonNavegacion(
-                indice: 3,
-                icono: Icons.timeline_rounded,
-                mensajeTooltip: 'Línea del tiempo de hoy',
-              ),
-
-              // 5. Horario Inteligente
-              _construirBotonNavegacion(
-                indice: 4,
-                icono: Icons.checklist_rtl_rounded,
-                mensajeTooltip: 'Horario Inteligente',
-              ),
-
-              // 6. Botón flotante para Nueva Tarea (+)
+              _construirBotonNavegacion(0, Icons.home_rounded, 'Inicio', 'Home / Menú Principal'),
+              _construirBotonNavegacion(1, Icons.menu_book_rounded, 'Agendas', 'Mis Agendas'),
+              _construirBotonNavegacion(2, Icons.calendar_month_rounded, 'Calendario', 'Calendario'),
+              _construirBotonNavegacion(3, Icons.timeline_rounded, 'Timeline', 'Línea del tiempo de hoy'),
+              _construirBotonNavegacion(4, Icons.checklist_rtl_rounded, 'Horario', 'Horario Inteligente'),
               Tooltip(
                 message: 'Nueva Tarea',
                 child: InkWell(
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const NewTaskScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => NewTaskScreen(
+                          alGuardarExitoso: () {
+                            cambiarPestana(1);
+                          },
+                        ),
+                      ),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.botonOscuro,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                   ),
                 ),
               ),
@@ -125,32 +104,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _construirBotonNavegacion({
-    required int indice,
-    required IconData icono,
-    required String mensajeTooltip,
-  }) {
+  Widget _construirBotonNavegacion(int indice, IconData icono, String etiqueta, String tooltip) {
     final bool estaActivo = _indiceSeleccionado == indice;
-
     return Tooltip(
-      message: mensajeTooltip,
+      message: tooltip,
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _indiceSeleccionado = indice;
-          });
-        },
+        onTap: () => cambiarPestana(indice),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: estaActivo ? AppColors.botonOscuro.withOpacity(0.12) : Colors.transparent,
+            color: estaActivo ? AppColors.botonOscuro.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            icono,
-            size: 26,
-            color: estaActivo ? AppColors.botonOscuro : AppColors.textoOscuro.withOpacity(0.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icono,
+                size: 22,
+                color: estaActivo ? AppColors.botonOscuro : AppColors.textoOscuro.withValues(alpha: 0.6),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                etiqueta,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: estaActivo ? FontWeight.bold : FontWeight.normal,
+                  color: estaActivo ? AppColors.botonOscuro : AppColors.textoOscuro.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
         ),
       ),

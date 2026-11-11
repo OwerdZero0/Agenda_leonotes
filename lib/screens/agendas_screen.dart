@@ -171,6 +171,15 @@ class AgendasScreen extends StatelessWidget {
     if (confirmar == true && contexto.mounted) {
       final proveedor = Provider.of<AgendaProvider>(contexto, listen: false);
       await proveedor.eliminarAgenda(agenda.id);
+      if (contexto.mounted) {
+        ScaffoldMessenger.of(contexto).clearSnackBars();
+        ScaffoldMessenger.of(contexto).showSnackBar(
+          SnackBar(
+            content: Text('Agenda "${agenda.nombre}" eliminada'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -219,7 +228,7 @@ class AgendasScreen extends StatelessWidget {
                         Icon(
                           Icons.menu_book_rounded,
                           size: 64,
-                          color: AppColors.textoSecundario.withOpacity(0.4),
+                          color: AppColors.textoSecundario.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 12),
                         const Text(
@@ -260,7 +269,7 @@ class AgendasScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
-                            color: Color(agenda.colorHexadecimal).withOpacity(0.4),
+                            color: Color(agenda.colorHexadecimal).withValues(alpha: 0.4),
                             width: 1.5,
                           ),
                         ),

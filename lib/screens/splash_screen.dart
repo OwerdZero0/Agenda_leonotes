@@ -57,44 +57,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logotipo estilizado de libreta
+              // Logotipo de la app
               Container(
-                width: 110,
-                height: 110,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   color: AppColors.hojaLibreta,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 15,
                       offset: const Offset(4, 6),
                     ),
                   ],
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned(
-                      left: 14,
-                      top: 10,
-                      bottom: 10,
-                      child: Container(
-                        width: 2,
-                        color: AppColors.lineaMargenHoja,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.menu_book_rounded,
-                      size: 50,
-                      color: AppColors.botonOscuro,
-                    ),
-                  ],
+                padding: const EdgeInsets.all(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/images/imagenInicio.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               const Text(
-                'Mi Agenda',
+                'LeoNotes',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
